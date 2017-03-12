@@ -1,0 +1,132 @@
+---
+title: "Coursera Practical Machine Learning Course Final Project"
+author: "Junda Zhu"
+date: "March 12, 2017"
+output: html_document
+---
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <http://groupware.les.inf.puc-rio.br/har> (see the section on the Weight Lifting Exercise Dataset).
+
+## Data
+
+The training data for this project are available here:
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv>
+
+The test data are available here:
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv>
+
+The data for this project come from this source: <http://groupware.les.inf.puc-rio.br/har>. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+## What you should submit
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+Peer Review Portion
+
+Your submission for the Peer Review portion should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-).
+
+Course Project Prediction Quiz Portion
+
+Apply your machine learning algorithm to the 20 test cases available in the test data above and submit your predictions in appropriate format to the Course Project Prediction Quiz for automated grading.
+
+## Reproducibility
+
+Due to security concerns with the exchange of R code, your code will not be run during the evaluation by your classmates. Please be sure that if they download the repo, they will be able to view the compiled HTML version of your analysis.
+
+## Data Importing, Cleaning, and restructuring
+
+First, We need to get the data imported and assign the according variables
+```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+library(caret)
+library(ggplot2)
+library(randomForest)
+
+# Setting up a local work folder, easier for debugging
+setwd("C:/Users/Junda Zhu/Desktop/R depository/PML Course Project")
+
+#download Data from the course provided links
+train_url <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(url=train_url, destfile="training.csv")
+
+test_url <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(url=test_url, destfile="testing.csv")
+
+#Import both training and testing datasets
+train <- read.csv("training.csv", na.strings=c("NA","#DIV/0!",""))
+test <- read.csv("testing.csv", na.strings=c("NA","#DIV/0!",""))
+
+names(train)
+str(train)
+summary(train)
+#The target prediction outcome
+summary(train$classe)
+```
+
+Then, we need to set aside 40 percent of the training data for cross validation purposes
+Typical split is 40 percent for validation and 60 percent for training itself
+```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+inTrain <- createDataPartition(y=train$classe, p=0.6, list=FALSE)
+myTrain <- train[inTrain, ]
+myTest <- train[-inTrain, ]
+```
+
+Afterwards, we need to clean and structure the data using only valid indicators/features. Acertain selection of feature will be removed. They are in the following criterias:
+1.Variables with variances that are close to zero (considered constant)
+2.Variables with missing readings over 75%
+3.Variables that are not fit to be predictors
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+mytrain_SUB <- myTrain
+for (i in 1:length(myTrain)) {
+  if (sum(is.na(myTrain[ , i])) / nrow(myTrain) >= .75) {
+    for (j in 1:length(mytrain_SUB)) {
+      if (length(grep(names(myTrain[i]), names(mytrain_SUB)[j]))==1) {
+        mytrain_SUB <- mytrain_SUB[ , -j]
+      }
+    }
+  }
+}
+
+dim(mytrain_SUB)
+
+mytrain_SUB2 <- mytrain_SUB[,8:length(mytrain_SUB)]
+NZV <- nearZeroVar(mytrain_SUB2, saveMetrics = TRUE)
+
+keep <- names(mytrain_SUB2)
+```
+
+## Modeling the Prediction Model Using Random Forest
+
+I have test serval classification algorithm with them giving the same of similar prediction results including ANN, SVM, K-means and such. Among those, random forest gave the best result. Hence, this method is the one I have decided to use.
+
+First step for me after building the model is to test the model on the data that i setted aside in the training dataset.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#Reproducibility set
+set.seed(556)
+#Random forest model fabrication
+modFit <- randomForest(classe~., data = mytrain_SUB2)
+print(modFit)
+
+#cross validation on my testing data
+#out of sample error
+predict1 <- predict(modFit, myTest, type = "class")
+confusionMatrix(myTest$classe, predict1)
+
+#in sample error
+predict_train <- predict(modFit, myTrain, type = "class")
+confusionMatrix(myTrain$classe, predict_train)
+
+```
+
+## Prediction Verification
+
+At last, the final step is to apply my Model on the test data set as imported from the course provided link.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+predict_FINAL <- predict(modFit, test, type = "class")
+print(predict_FINAL)
+
+```
