@@ -122,6 +122,10 @@ confusionMatrix(myTrain$classe, predict_train)
 
 ```
 
+## Summary of Accuracy and Error
+
+As shown in the accuracy result above, when tested on the subset data used for cross validation we get an accuracy of 99%. This can be used to estimate our out of sample error. On the other hand the fabricated model is fitted to the training portion of the data, we get an accuracy of 100%. This can be used to estimate the in sample error.
+
 ## Prediction Verification
 
 At last, the final step is to apply my Model on the test data set as imported from the course provided link.
